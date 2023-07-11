@@ -9,6 +9,7 @@ import (
 	"github.com/osbuild/images/pkg/disk"
 	"github.com/osbuild/images/pkg/osbuild"
 	"github.com/osbuild/images/pkg/ostree"
+	"github.com/osbuild/images/pkg/platform"
 	"github.com/osbuild/images/pkg/rpmmd"
 )
 
@@ -109,6 +110,12 @@ func (p *AnacondaInstallerISOTree) getBuildPackages(_ Distro) []string {
 	if p.OSPipeline != nil {
 		packages = append(packages, "tar")
 	}
+
+	if p.anacondaPipeline.GetPlatform().GetArch().String() == platform.ARCH_X86_64.String() {
+		packages = append(packages, "syslinux-nonlinux")
+	}
+
+	packages = append(packages, p.PartitionTable.GetBuildPackages()...)
 
 	return packages
 }

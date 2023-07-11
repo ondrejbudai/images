@@ -710,6 +710,18 @@
     "no-image-info": true,
     "overrides": {}
   },
+  "live-media": {
+    "compose-request": {
+      "distro": "",
+      "arch": "",
+      "image-type": "live-media",
+      "repositories": [],
+      "filename": "media.iso",
+      "blueprint": {}
+    },
+    "no-image-info": true,
+    "overrides": {}
+  },
   "image-installer-with-users": {
     "compose-request": {
       "distro": "",

@@ -457,6 +457,22 @@ func liveInstallerPackageSet(t *imageType) rpmmd.PackageSet {
 	return ps
 }
 
+func liveMediaPackageSet(t *imageType) rpmmd.PackageSet {
+	ps := rpmmd.PackageSet{
+		Include: []string{
+			"fedora-logos",
+			"livesys-scripts",
+			"dracut-live",
+		},
+	}
+
+	if t.arch.Name() == platform.ARCH_X86_64.String() {
+		ps.Include = append(ps.Include, "syslinux-nonlinux")
+	}
+
+	return ps
+}
+
 func imageInstallerPackageSet(t *imageType) rpmmd.PackageSet {
 	ps := anacondaPackageSet(t)
 

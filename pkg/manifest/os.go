@@ -2,6 +2,7 @@ package manifest
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -387,6 +388,33 @@ func (p *OS) serialize() osbuild.Pipeline {
 			pipeline.AddStage(osbuild.NewFixBLSStage(&osbuild.FixBLSStageOptions{Prefix: common.ToPtr("")}))
 		}
 	}
+	pipeline.AddStage(osbuild.NewBuildstampStage(&osbuild.BuildstampStageOptions{
+		Arch:    p.platform.GetArch().String(),
+		Product: "Fedora",
+		Variant: "",
+		Version: "38",
+		Final:   true,
+	}))
+
+	systemdStageOptions := &osbuild.SystemdStageOptions{
+		EnabledServices: []string{
+			"livesys.service",
+			"livesys-late.service",
+		},
+	}
+
+	pipeline.AddStage(osbuild.NewSystemdStage(systemdStageOptions))
+
+	livesysMode := os.FileMode(int(0644))
+	livesysFile, err := fsnode.NewFile("/etc/sysconfig/livesys", &livesysMode, "root", "root", []byte("livesys_session=\"gnome\""))
+
+	if err != nil {
+		panic(err)
+	}
+
+	p.Files = []*fsnode.File{livesysFile}
+
+	pipeline.AddStages(osbuild.GenFileNodesStages(p.Files)...)
 
 	if len(p.containerSpecs) > 0 {
 		images := osbuild.NewContainersInputForSources(p.containerSpecs)
@@ -713,6 +741,21 @@ func (p *OS) serialize() osbuild.Pipeline {
 	if wslConf := p.WSLConfig; wslConf != nil {
 		pipeline.AddStage(osbuild.NewWSLConfStage(wslConf))
 	}
+
+	dracutModules := []string{
+		//"anaconda",
+		//"rdma",
+		//"rngd",
+		//"multipath",
+		//"fcoe",
+		//"fcoe-uefi",
+		//"iscsi",
+		"lunmask",
+		//"nfs",
+	}
+
+	dracutOptions := dracutStageOptions(p.kernelVer, false, dracutModules)
+	pipeline.AddStage(osbuild.NewDracutStage(dracutOptions))
 
 	if p.SElinux != "" {
 		pipeline.AddStage(osbuild.NewSELinuxStage(&osbuild.SELinuxStageOptions{

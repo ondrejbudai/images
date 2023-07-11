@@ -225,6 +225,40 @@ func liveImage(workload workload.Workload,
 	return img, nil
 }
 
+func liveMedia(workload workload.Workload,
+	t *imageType,
+	customizations *blueprint.Customizations,
+	options distro.ImageOptions,
+	packageSets map[string]rpmmd.PackageSet,
+	containers []container.SourceSpec,
+	rng *rand.Rand) (image.ImageKind, error) {
+
+	img := image.NewLiveMedia()
+	img.Platform = t.platform
+	img.OSCustomizations = osCustomizations(t, packageSets[osPkgsKey], containers, customizations)
+	img.Environment = t.environment
+	img.Workload = workload
+
+	d := t.arch.distro
+
+	img.ISOLabelTempl = d.isolabelTmpl
+	img.Product = d.product
+	img.OSName = "fedora"
+	img.OSVersion = d.osVersion
+	img.Release = fmt.Sprintf("%s %s", d.product, d.osVersion)
+
+	// yolo!
+	img.OSCustomizations.Users = []users.User{
+		{Name: "root", Password: common.ToPtr("foobar")},
+	}
+
+	// TODO: move generation into LiveImage
+
+	img.Filename = t.Filename()
+
+	return img, nil
+}
+
 func containerImage(workload workload.Workload,
 	t *imageType,
 	c *blueprint.Customizations,

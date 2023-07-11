@@ -98,6 +98,23 @@ var (
 		exports:          []string{"bootiso"},
 	}
 
+	liveMediaImgType = imageType{
+		name:        "live-media",
+		nameAliases: []string{},
+		filename:    "live-media.iso",
+		mimeType:    "application/x-iso9660-image",
+		packageSets: map[string]packageSetFunc{
+			osPkgsKey: liveMediaPackageSet,
+		},
+		bootable:         true,
+		bootISO:          true,
+		rpmOstree:        false,
+		image:            liveMedia,
+		buildPipelines:   []string{"build"},
+		payloadPipelines: []string{"os", "rootfs-image", "efiboot-tree", "bootiso-tree", "bootiso"},
+		exports:          []string{"bootiso"},
+	}
+
 	iotCommitImgType = imageType{
 		name:        "iot-commit",
 		nameAliases: []string{"fedora-iot-commit"},
@@ -623,6 +640,7 @@ func newDistro(version int) distro.Distro {
 		iotInstallerImgType,
 		imageInstallerImgType,
 		liveInstallerImgType,
+		liveMediaImgType,
 	)
 	x86_64.addImageTypes(
 		&platform.X86{
@@ -683,6 +701,7 @@ func newDistro(version int) distro.Distro {
 		iotInstallerImgType,
 		imageInstallerImgType,
 		liveInstallerImgType,
+		liveMediaImgType,
 	)
 	aarch64.addImageTypes(
 		&platform.Aarch64_IoT{
