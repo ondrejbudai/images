@@ -31,6 +31,10 @@ type OSTreeCommitServer struct {
 	listenPort      string
 }
 
+func (p *OSTreeCommitServer) GetKernelVersion() string {
+	return ""
+}
+
 // NewOSTreeCommitServer creates a new pipeline. The content
 // is built from repos and packages, which must contain nginx. commitPipeline
 // is a pipeline producing an ostree commit to be served. nginxConfigPath

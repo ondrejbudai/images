@@ -27,7 +27,7 @@ type AnacondaInstallerISOTree struct {
 
 	PartitionTable *disk.PartitionTable
 
-	anacondaPipeline *AnacondaInstaller
+	anacondaPipeline Tree
 	rootfsPipeline   *ISORootfsImg
 	bootTreePipeline *EFIBootTree
 
@@ -53,11 +53,14 @@ type AnacondaInstallerISOTree struct {
 
 	// Enable ISOLinux stage
 	ISOLinux bool
+
+	Product string
+	Version string
 }
 
 func NewAnacondaInstallerISOTree(m *Manifest,
 	buildPipeline *Build,
-	anacondaPipeline *AnacondaInstaller,
+	anacondaPipeline Tree,
 	rootfsPipeline *ISORootfsImg,
 	bootTreePipeline *EFIBootTree,
 	isoLabel string) *AnacondaInstallerISOTree {
@@ -70,9 +73,9 @@ func NewAnacondaInstallerISOTree(m *Manifest,
 		isoLabel:         isoLabel,
 	}
 	buildPipeline.addDependent(p)
-	if anacondaPipeline.Base.manifest != m {
-		panic("anaconda pipeline from different manifest")
-	}
+	//if anacondaPipeline.Base.manifest != m {
+	//	panic("anaconda pipeline from different manifest")
+	//}
 	m.addPipeline(p)
 	return p
 }
@@ -129,27 +132,27 @@ func (p *AnacondaInstallerISOTree) serializeEnd() {
 
 func (p *AnacondaInstallerISOTree) serialize() osbuild.Pipeline {
 	// If the anaconda pipeline is a payload then we need one of two payload types
-	if p.anacondaPipeline.Type == AnacondaInstallerTypePayload {
-		if p.ostreeCommitSpec == nil && p.OSPipeline == nil {
-			panic("missing ostree or ospipeline parameters in ISO tree pipeline")
-		}
-
-		// But not both payloads
-		if p.ostreeCommitSpec != nil && p.OSPipeline != nil {
-			panic("got both ostree and ospipeline parameters in ISO tree pipeline")
-		}
-	}
+	//if p.anacondaPipeline.Type == AnacondaInstallerTypePayload {
+	//	if p.ostreeCommitSpec == nil && p.OSPipeline == nil {
+	//		panic("missing ostree or ospipeline parameters in ISO tree pipeline")
+	//	}
+	//
+	//	// But not both payloads
+	//	if p.ostreeCommitSpec != nil && p.OSPipeline != nil {
+	//		panic("got both ostree and ospipeline parameters in ISO tree pipeline")
+	//	}
+	//}
 
 	pipeline := p.Base.serialize()
 
 	kernelOpts := []string{}
 
-	if p.anacondaPipeline.Type == AnacondaInstallerTypePayload {
-		kernelOpts = append(kernelOpts, fmt.Sprintf("inst.stage2=hd:LABEL=%s", p.isoLabel))
-		if p.KSPath != "" {
-			kernelOpts = append(kernelOpts, fmt.Sprintf("inst.ks=hd:LABEL=%s:%s", p.isoLabel, p.KSPath))
-		}
-	}
+	//if p.anacondaPipeline.Type == AnacondaInstallerTypePayload {
+	//	kernelOpts = append(kernelOpts, fmt.Sprintf("inst.stage2=hd:LABEL=%s", p.isoLabel))
+	//	if p.KSPath != "" {
+	//		kernelOpts = append(kernelOpts, fmt.Sprintf("inst.ks=hd:LABEL=%s:%s", p.isoLabel, p.KSPath))
+	//	}
+	//}
 
 	if len(p.KernelOpts) > 0 {
 		kernelOpts = append(kernelOpts, p.KernelOpts...)
@@ -166,25 +169,26 @@ func (p *AnacondaInstallerISOTree) serialize() osbuild.Pipeline {
 		},
 	}))
 
-	if p.anacondaPipeline.Type == AnacondaInstallerTypeLive {
-		pipeline.AddStage(osbuild.NewMkdirStage(&osbuild.MkdirStageOptions{
-			Paths: []osbuild.MkdirStagePath{
-				{
-					Path: "LiveOS",
-				},
+	// extra files
+	//if p.anacondaPipeline.Type == AnacondaInstallerTypeLive {
+	pipeline.AddStage(osbuild.NewMkdirStage(&osbuild.MkdirStageOptions{
+		Paths: []osbuild.MkdirStagePath{
+			{
+				Path: "LiveOS",
 			},
-		}))
-	}
+		},
+	}))
+	//}
 
 	inputName := "tree"
 	copyStageOptions := &osbuild.CopyStageOptions{
 		Paths: []osbuild.CopyStagePath{
 			{
-				From: fmt.Sprintf("input://%s/boot/vmlinuz-%s", inputName, p.anacondaPipeline.kernelVer),
+				From: fmt.Sprintf("input://%s/boot/vmlinuz-%s", inputName, p.anacondaPipeline.GetKernelVersion()),
 				To:   "tree:///images/pxeboot/vmlinuz",
 			},
 			{
-				From: fmt.Sprintf("input://%s/boot/initramfs-%s.img", inputName, p.anacondaPipeline.kernelVer),
+				From: fmt.Sprintf("input://%s/boot/initramfs-%s.img", inputName, p.anacondaPipeline.GetKernelVersion()),
 				To:   "tree:///images/pxeboot/initrd.img",
 			},
 		},
@@ -195,15 +199,15 @@ func (p *AnacondaInstallerISOTree) serialize() osbuild.Pipeline {
 
 	var squashfsOptions osbuild.SquashfsStageOptions
 
-	if p.anacondaPipeline.Type == AnacondaInstallerTypePayload {
-		squashfsOptions = osbuild.SquashfsStageOptions{
-			Filename: "images/install.img",
-		}
-	} else if p.anacondaPipeline.Type == AnacondaInstallerTypeLive {
-		squashfsOptions = osbuild.SquashfsStageOptions{
-			Filename: "LiveOS/squashfs.img",
-		}
+	//if p.anacondaPipeline.Type == AnacondaInstallerTypePayload {
+	//	squashfsOptions = osbuild.SquashfsStageOptions{
+	//		Filename: "images/install.img",
+	//	}
+	//} else if p.anacondaPipeline.Type == AnacondaInstallerTypeLive {
+	squashfsOptions = osbuild.SquashfsStageOptions{
+		Filename: "LiveOS/squashfs.img",
 	}
+	//}
 
 	if p.SquashfsCompression != "" {
 		squashfsOptions.Compression.Method = p.SquashfsCompression
@@ -214,7 +218,7 @@ func (p *AnacondaInstallerISOTree) serialize() osbuild.Pipeline {
 
 	if squashfsOptions.Compression.Method == "xz" {
 		squashfsOptions.Compression.Options = &osbuild.FSCompressionOptions{
-			BCJ: osbuild.BCJOption(p.anacondaPipeline.platform.GetArch().String()),
+			BCJ: osbuild.BCJOption(p.anacondaPipeline.GetPlatform().GetArch().String()),
 		}
 	}
 
@@ -224,8 +228,8 @@ func (p *AnacondaInstallerISOTree) serialize() osbuild.Pipeline {
 	if p.ISOLinux {
 		isoLinuxOptions := &osbuild.ISOLinuxStageOptions{
 			Product: osbuild.ISOLinuxProduct{
-				Name:    p.anacondaPipeline.product,
-				Version: p.anacondaPipeline.version,
+				Name:    p.Product,
+				Version: p.Version,
 			},
 			Kernel: osbuild.ISOLinuxKernel{
 				Dir:  "/images/pxeboot",
@@ -301,7 +305,7 @@ func (p *AnacondaInstallerISOTree) serialize() osbuild.Pipeline {
 	}
 
 	pipeline.AddStage(osbuild.NewDiscinfoStage(&osbuild.DiscinfoStageOptions{
-		BaseArch: p.anacondaPipeline.platform.GetArch().String(),
+		BaseArch: p.anacondaPipeline.GetPlatform().GetArch().String(),
 		Release:  p.Release,
 	}))
 

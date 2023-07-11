@@ -72,6 +72,10 @@ type AnacondaInstaller struct {
 	Files []*fsnode.File
 }
 
+func (p *AnacondaInstaller) GetKernelVersion() string {
+	return p.kernelVer
+}
+
 func NewAnacondaInstaller(m *Manifest,
 	installerType AnacondaInstallerType,
 	buildPipeline *Build,

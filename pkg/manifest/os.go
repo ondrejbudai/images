@@ -166,6 +166,10 @@ type OS struct {
 	OSNick    string
 }
 
+func (p *OS) GetKernelVersion() string {
+	return p.kernelVer
+}
+
 // NewOS creates a new OS pipeline. build is the build pipeline to use for
 // building the OS pipeline. platform is the target platform for the final
 // image. repos are the repositories to install RPMs from.
