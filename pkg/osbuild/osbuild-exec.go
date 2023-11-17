@@ -15,12 +15,16 @@ import (
 // Note that osbuild returns non-zero when the pipeline fails. This function
 // does not return an error in this case. Instead, the failure is communicated
 // with its corresponding logs through osbuild.Result.
-func RunOSBuild(manifest []byte, store, outputDirectory string, exports, checkpoints, extraEnv []string, result bool, errorWriter io.Writer) (*Result, error) {
+func RunOSBuild(manifest []byte, store, outputDirectory, osbuildPath, libdir string, exports, checkpoints, extraEnv []string, result bool, errorWriter io.Writer) (*Result, error) {
 	var stdoutBuffer bytes.Buffer
 	var res Result
 
+	if osbuildPath == "" {
+		osbuildPath = "osbuild"
+	}
+
 	cmd := exec.Command(
-		"osbuild",
+		osbuildPath,
 		"--store", store,
 		"--output-directory", outputDirectory,
 		"-",
@@ -39,6 +43,10 @@ func RunOSBuild(manifest []byte, store, outputDirectory string, exports, checkpo
 		cmd.Stdout = &stdoutBuffer
 	} else {
 		cmd.Stdout = os.Stdout
+	}
+
+	if libdir != "" {
+		cmd.Args = append(cmd.Args, "--libdir", libdir)
 	}
 
 	if len(extraEnv) > 0 {

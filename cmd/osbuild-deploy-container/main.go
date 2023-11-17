@@ -133,12 +133,14 @@ func main() {
 	arch := common.CurrentArch()
 	repos := loadRepos(arch)
 
-	var outputDir, osbuildStore, rpmCacheRoot, configFile, imageref string
+	var outputDir, osbuildStore, rpmCacheRoot, configFile, imageref, osbuildPath, libdir string
 	flag.StringVar(&outputDir, "output", ".", "artifact output directory")
 	flag.StringVar(&osbuildStore, "store", ".osbuild", "osbuild store for intermediate pipeline trees")
 	flag.StringVar(&rpmCacheRoot, "rpmmd", "/var/cache/osbuild/rpmmd", "rpm metadata cache directory")
 	flag.StringVar(&configFile, "config", "", "build config file")
 	flag.StringVar(&imageref, "imageref", "", "container image to deploy")
+	flag.StringVar(&osbuildPath, "osbuild", "", "path to osbuild")
+	flag.StringVar(&libdir, "libdir", "", "path to osbuild's libdir")
 
 	flag.Parse()
 
@@ -173,7 +175,7 @@ func main() {
 
 	fmt.Printf("Building manifest: %s\n", manifestPath)
 
-	if _, err := osbuild.RunOSBuild(mf, osbuildStore, outputDir, []string{"qcow2"}, nil, nil, false, os.Stderr); err != nil {
+	if _, err := osbuild.RunOSBuild(mf, osbuildStore, outputDir, osbuildPath, libdir, []string{"qcow2"}, nil, nil, false, os.Stderr); err != nil {
 		check(err)
 	}
 
