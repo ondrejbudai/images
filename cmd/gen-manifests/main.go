@@ -21,11 +21,11 @@ import (
 	"github.com/osbuild/images/pkg/blueprint"
 	"github.com/osbuild/images/pkg/container"
 	"github.com/osbuild/images/pkg/distro"
+	"github.com/osbuild/images/pkg/distro/ascode"
 	"github.com/osbuild/images/pkg/distrofactory"
 	"github.com/osbuild/images/pkg/dnfjson"
 	"github.com/osbuild/images/pkg/manifest"
 	"github.com/osbuild/images/pkg/ostree"
-	"github.com/osbuild/images/pkg/reporegistry"
 	"github.com/osbuild/images/pkg/rhsm/facts"
 	"github.com/osbuild/images/pkg/rpmmd"
 )
@@ -527,12 +527,16 @@ func main() {
 		panic(err)
 	}
 
-	testedRepoRegistry, err := reporegistry.NewTestedDefault()
-	if err != nil {
-		panic(fmt.Sprintf("failed to create repo registry with tested distros: %v", err))
-	}
+	// testedRepoRegistry, err := reporegistry.NewTestedDefault()
+	// if err != nil {
+	// 	panic(fmt.Sprintf("failed to create repo registry with tested distros: %v", err))
+	// }
 
 	distroFac := distrofactory.NewDefault()
+
+	// yolo!
+	distroFac.Add(ascode.DistroFactory("defs"))
+
 	jobs := make([]manifestJob, 0)
 
 	contentResolve := map[string]bool{
@@ -555,10 +559,11 @@ func main() {
 
 	fmt.Println("Collecting jobs")
 
-	distros, invalidDistros := resolveArgValues(distros, testedRepoRegistry.ListDistros())
-	if len(invalidDistros) > 0 {
-		fmt.Fprintf(os.Stderr, "WARNING: invalid distro names: [%s]\n", strings.Join(invalidDistros, ","))
-	}
+	// YOLO: temporarily allow generating manifests for non-existing manifests
+	// distros, invalidDistros := resolveArgValues(distros, testedRepoRegistry.ListDistros())
+	// if len(invalidDistros) > 0 {
+	// 	fmt.Fprintf(os.Stderr, "WARNING: invalid distro names: [%s]\n", strings.Join(invalidDistros, ","))
+	// }
 	for _, distroName := range distros {
 		distribution := distroFac.GetDistro(distroName)
 		if distribution == nil {
@@ -589,19 +594,20 @@ func main() {
 				}
 
 				// get repositories
-				repos, err := testedRepoRegistry.ReposByArchName(distroName, archName, true)
-				if err != nil {
-					panic(fmt.Sprintf("failed to get repositories for %s/%s: %v", distroName, archName, err))
-				}
-				repos = filterRepos(repos, imgTypeName)
-				if len(repos) == 0 {
-					fmt.Printf("no repositories defined for %s/%s/%s\n", distroName, archName, imgTypeName)
-					if skipNorepos {
-						fmt.Println("Skipping")
-						continue
-					}
-					panic("no repositories found, pass --skip-norepos to skip")
-				}
+				// YOLO: we don't need repos right now
+				// repos, err := testedRepoRegistry.ReposByArchName(distroName, archName, true)
+				// if err != nil {
+				// 	panic(fmt.Sprintf("failed to get repositories for %s/%s: %v", distroName, archName, err))
+				// }
+				// repos = filterRepos(repos, imgTypeName)
+				// if len(repos) == 0 {
+				// 	fmt.Printf("no repositories defined for %s/%s/%s\n", distroName, archName, imgTypeName)
+				// 	if skipNorepos {
+				// 		fmt.Println("Skipping")
+				// 		continue
+				// 	}
+				// 	panic("no repositories found, pass --skip-norepos to skip")
+				// }
 
 				imgTypeConfigs := configs.Get(distroName, archName, imgTypeName)
 				if len(imgTypeConfigs) == 0 {
@@ -612,7 +618,7 @@ func main() {
 				}
 
 				for _, itConfig := range imgTypeConfigs {
-					job := makeManifestJob(itConfig.Name, imgType, itConfig, distribution, repos, archName, rngSeed, outputDir, cacheRoot, contentResolve, metadata)
+					job := makeManifestJob(itConfig.Name, imgType, itConfig, distribution, nil, archName, rngSeed, outputDir, cacheRoot, contentResolve, metadata)
 					jobs = append(jobs, job)
 				}
 			}

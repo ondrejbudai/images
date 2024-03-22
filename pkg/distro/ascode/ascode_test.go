@@ -12,7 +12,13 @@ import (
 )
 
 func Test_asCodeImageType_Manifest(t *testing.T) {
-	it, err := Load("fedora.imgdef.yaml")
+	d, err := newDistro("../../../defs", "fedorang-39")
+	require.NoError(t, err)
+
+	a, err := d.GetArch("x86_64")
+	require.NoError(t, err)
+
+	it, err := a.GetImageType("disk")
 	require.NoError(t, err)
 
 	bp := blueprint.Blueprint{

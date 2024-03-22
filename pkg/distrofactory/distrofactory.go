@@ -97,6 +97,10 @@ func (f *Factory) RegisterAliases(aliases map[string]string) error {
 	return nil
 }
 
+func (f *Factory) Add(factory FactoryFunc) {
+	f.factories = append(f.factories, factory)
+}
+
 // New returns a Factory of distro.Distro factories for the given distros.
 func New(factories ...FactoryFunc) *Factory {
 	return &Factory{

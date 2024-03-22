@@ -152,7 +152,8 @@
       "tar",
       "vhd",
       "vmdk",
-      "wsl"
+      "wsl",
+      "disk"
     ]
   },
   "./configs/iot-customizations-full.json": {

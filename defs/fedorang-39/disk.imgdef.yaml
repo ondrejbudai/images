@@ -1,4 +1,5 @@
 name: disk
+architecture: x86_64
 filename: disk.img
 mime_type: application/raw
 partition_type: gpt
