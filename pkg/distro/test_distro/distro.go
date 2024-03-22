@@ -219,7 +219,7 @@ func (t *TestImageType) Exports() []string {
 	return distro.ExportsFallback()
 }
 
-func (t *TestImageType) Manifest(b *blueprint.Blueprint, options distro.ImageOptions, repos []rpmmd.RepoConfig, seed int64) (*manifest.Manifest, []string, error) {
+func (t *TestImageType) Manifest(b *blueprint.Blueprint, options distro.ImageOptions, repos []rpmmd.RepoConfig, seed int64) (distro.ManifestInterface, []string, error) {
 	var bpPkgs []string
 	if b != nil {
 		mountpoints := b.Customizations.GetFilesystems()

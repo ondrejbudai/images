@@ -172,7 +172,7 @@ func (t *imageType) PartitionType() string {
 func (t *imageType) Manifest(bp *blueprint.Blueprint,
 	options distro.ImageOptions,
 	repos []rpmmd.RepoConfig,
-	seed int64) (*manifest.Manifest, []string, error) {
+	seed int64) (distro.ManifestInterface, []string, error) {
 
 	warnings, err := t.checkOptions(bp, options)
 	if err != nil {
