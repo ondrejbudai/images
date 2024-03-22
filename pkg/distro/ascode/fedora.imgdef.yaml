@@ -1,0 +1,12 @@
+name: disk
+filename: disk.img
+mime_type: application/raw
+partition_type: gpt
+boot_mode: hybrid
+build_pipelines:
+  - build
+payload_pipelines:
+  - os
+exports:
+  - image
+manifest: fedora-boot-btrfs.mpp.yaml
