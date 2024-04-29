@@ -19,6 +19,20 @@ type SkopeoDestinationOCI struct {
 
 func (SkopeoDestinationOCI) isSkopeoDestination() {}
 
+type SkopeoDestinationOCIArchive struct {
+	Type string `json:"type"`
+	Path string `json:"path,omitempty"`
+}
+
+func (SkopeoDestinationOCIArchive) isSkopeoDestination() {}
+
+type SkopeoDestinationDir struct {
+	Type string `json:"type"`
+	Path string `json:"path,omitempty"`
+}
+
+func (SkopeoDestinationDir) isSkopeoDestination() {}
+
 type SkopeoStageOptions struct {
 	Destination SkopeoDestination `json:"destination"`
 }
@@ -58,6 +72,20 @@ func NewSkopeoStageWithContainersStorage(path string, images ContainersInput, ma
 func NewSkopeoStageWithOCI(path string, images ContainersInput, manifests *FilesInput) *Stage {
 	return newSkopeoStage(images, manifests, &SkopeoDestinationOCI{
 		Type: "oci",
+		Path: path,
+	})
+}
+
+func NewSkopeoStageWithOCIArchive(path string, images ContainersInput, manifests *FilesInput) *Stage {
+	return newSkopeoStage(images, manifests, &SkopeoDestinationOCIArchive{
+		Type: "oci-archive",
+		Path: path,
+	})
+}
+
+func NewSkopeoStageWithDir(path string, images ContainersInput, manifests *FilesInput) *Stage {
+	return newSkopeoStage(images, manifests, &SkopeoDestinationDir{
+		Type: "dir",
 		Path: path,
 	})
 }

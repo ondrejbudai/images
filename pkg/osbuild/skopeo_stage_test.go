@@ -52,6 +52,30 @@ func TestNewSkopeoStage(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "oci-archive",
+			fn: func() *Stage {
+				return NewSkopeoStageWithOCIArchive("/container.tar", skopeoInput, nil)
+			},
+			expectedStageOptions: &SkopeoStageOptions{
+				Destination: &SkopeoDestinationOCIArchive{
+					Type: "oci-archive",
+					Path: "/container.tar",
+				},
+			},
+		},
+		{
+			name: "dir",
+			fn: func() *Stage {
+				return NewSkopeoStageWithDir("/container", skopeoInput, nil)
+			},
+			expectedStageOptions: &SkopeoStageOptions{
+				Destination: &SkopeoDestinationDir{
+					Type: "dir",
+					Path: "/container",
+				},
+			},
+		},
 	}
 
 	for _, c := range cases {
