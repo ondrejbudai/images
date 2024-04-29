@@ -32,7 +32,7 @@ type SkopeoStageInputs struct {
 
 func (SkopeoStageInputs) isStageInputs() {}
 
-func NewSkopeoStageWithContainersStorage(path string, images ContainersInput, manifests *FilesInput) *Stage {
+func newSkopeoStage(images ContainersInput, manifests *FilesInput, destination SkopeoDestination) *Stage {
 
 	inputs := SkopeoStageInputs{
 		Images:        images,
@@ -42,29 +42,22 @@ func NewSkopeoStageWithContainersStorage(path string, images ContainersInput, ma
 	return &Stage{
 		Type: "org.osbuild.skopeo",
 		Options: &SkopeoStageOptions{
-			Destination: SkopeoDestinationContainersStorage{
-				Type:        "containers-storage",
-				StoragePath: path,
-			},
+			Destination: destination,
 		},
 		Inputs: inputs,
 	}
 }
 
-func NewSkopeoStageWithOCI(path string, images ContainersInput, manifests *FilesInput) *Stage {
-	inputs := SkopeoStageInputs{
-		Images:        images,
-		ManifestLists: manifests,
-	}
+func NewSkopeoStageWithContainersStorage(path string, images ContainersInput, manifests *FilesInput) *Stage {
+	return newSkopeoStage(images, manifests, &SkopeoDestinationContainersStorage{
+		Type:        "containers-storage",
+		StoragePath: path,
+	})
+}
 
-	return &Stage{
-		Type: "org.osbuild.skopeo",
-		Options: &SkopeoStageOptions{
-			Destination: &SkopeoDestinationOCI{
-				Type: "oci",
-				Path: path,
-			},
-		},
-		Inputs: inputs,
-	}
+func NewSkopeoStageWithOCI(path string, images ContainersInput, manifests *FilesInput) *Stage {
+	return newSkopeoStage(images, manifests, &SkopeoDestinationOCI{
+		Type: "oci",
+		Path: path,
+	})
 }

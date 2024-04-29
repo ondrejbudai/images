@@ -34,7 +34,7 @@ func TestNewSkopeoStage(t *testing.T) {
 				return NewSkopeoStageWithContainersStorage("/var/lib/containers", skopeoInput, nil)
 			},
 			expectedStageOptions: &SkopeoStageOptions{
-				Destination: SkopeoDestinationContainersStorage{
+				Destination: &SkopeoDestinationContainersStorage{
 					Type:        "containers-storage",
 					StoragePath: "/var/lib/containers",
 				},
