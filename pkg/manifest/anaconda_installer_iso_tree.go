@@ -410,7 +410,7 @@ func (p *AnacondaInstallerISOTree) ostreeContainerStages() []*osbuild.Stage {
 	}))
 
 	// copy the container in
-	stages = append(stages, osbuild.NewSkopeoStageWithOCI(
+	stages = append(stages, osbuild.NewSkopeoStageWithDir(
 		p.PayloadPath,
 		image,
 		nil))
@@ -421,7 +421,7 @@ func (p *AnacondaInstallerISOTree) ostreeContainerStages() []*osbuild.Stage {
 		p.Users,
 		p.Groups,
 		path.Join("/run/install/repo", p.PayloadPath),
-		"oci",
+		"dir",
 		"",
 		"")
 	if err != nil {
