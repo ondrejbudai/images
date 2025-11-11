@@ -142,3 +142,5 @@ image_types:
     exports: ["bootiso"]
     filename: "install.iso"
     boot_iso: true
+    installer_config:
+      bootc_install_verb: bootc

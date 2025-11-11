@@ -838,6 +838,30 @@ func TestAnacondaISOTreeSerializeWithContainer(t *testing.T) {
 		_, err := manifest.SerializeWith(pipeline, manifest.Inputs{Containers: []container.Spec{containerPayload}})
 		assert.EqualError(t, err, "cannot create ostree container stages: cannot generate bootc installer kickstart stages: failed to create kickstart stage options: org.osbuild.kickstart: unsupported options for user \"root\": shell")
 	})
+
+	t.Run("bootc-install-verb", func(t *testing.T) {
+		pipeline := newTestAnacondaISOTree()
+		pipeline.Kickstart = &kickstart.Options{Path: testKsPath}
+		pipeline.BootcInstallVerb = "bootc"
+		sp, err := manifest.SerializeWith(pipeline, manifest.Inputs{Containers: []container.Spec{containerPayload}})
+		assert.NoError(t, err)
+
+		// Verify that no kickstart stage is created
+		kickstartStage := findStage("org.osbuild.kickstart", sp.Stages)
+		assert.Nil(t, kickstartStage, "kickstart stage should not be created when BootcInstallVerb is 'bootc'")
+
+		// Verify that a file stage is created with the %bootc directive
+		ksCopyStageOptions := findRawKickstartFileStage(sp.Stages)
+		assert.NotNil(t, ksCopyStageOptions, "kickstart file should be created when BootcInstallVerb is 'bootc'")
+
+		// Check the content - it should be %bootc followed by the container LocalName
+		expectedContent := fmt.Sprintf("%%bootc %s\n", containerPayload.LocalName)
+		contentHash := fmt.Sprintf("%x", sha256.Sum256([]byte(expectedContent)))
+		expContentID := fmt.Sprintf("input://file-%[1]s/sha256:%[1]s", contentHash)
+		if inlineID := ksCopyStageOptions.Paths[0].From; inlineID != expContentID {
+			t.Errorf("kickstart content mismatch: expected %s, got %s", expContentID, inlineID)
+		}
+	})
 }
 
 func TestMakeKickstartSudoersPost(t *testing.T) {

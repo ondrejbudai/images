@@ -131,6 +131,10 @@ type AnacondaInstallerISOTree struct {
 	SubscriptionPipeline *Subscription
 
 	InstallRootfsType disk.FSType
+
+	// BootcInstallVerb controls which directive to use in kickstart files.
+	// Valid values are "ostreecontainer" (default) and "bootc"
+	BootcInstallVerb string
 }
 
 func NewAnacondaInstallerISOTree(buildPipeline Build, anacondaPipeline *AnacondaInstaller, rootfsPipeline *ISORootfsImg, bootTreePipeline *EFIBootTree) *AnacondaInstallerISOTree {
@@ -653,6 +657,25 @@ func (p *AnacondaInstallerISOTree) bootcInstallerKickstartStages() ([]*osbuild.S
 	}
 
 	stages := make([]*osbuild.Stage, 0)
+
+	// If BootcInstallVerb is "bootc", create kickstart file manually with %bootc directive
+	// TODO: This is obviously extemely hacky, we should implement this properly in the kickstart stage
+	if p.BootcInstallVerb == "bootc" {
+		if p.containerSpec == nil {
+			return nil, fmt.Errorf("container spec not set for %s pipeline", p.name)
+		}
+		kickstartContent := fmt.Sprintf("bootc --source-imgref oci:%s --target-imgref %s\n", path.Join("/run/install/repo", p.PayloadPath), p.containerSpec.LocalName)
+		kickstartFile, err := fsnode.NewFile(p.Kickstart.Path, nil, nil, nil, []byte(kickstartContent))
+		if err != nil {
+			return nil, fmt.Errorf("failed to create kickstart file: %w", err)
+		}
+		p.Files = append(p.Files, kickstartFile)
+		return osbuild.GenFileNodesStages(p.Files), nil
+	}
+
+	if p.BootcInstallVerb != "ostreecontainer" {
+		return nil, fmt.Errorf("invalid BootcInstallVerb: %s", p.BootcInstallVerb)
+	}
 
 	// do what we can in our kickstart stage
 	kickstartOptions, err := osbuild.NewKickstartStageOptionsWithOSTreeContainer(

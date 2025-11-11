@@ -171,7 +171,7 @@ func (c *Container) DefaultRootfsType() (string, error) {
 	supportedFS := []string{"ext4", "xfs", "btrfs"}
 
 	if fsType == "" {
-		return "", nil
+		return "ext4", nil
 	}
 	if !slices.Contains(supportedFS, fsType) {
 		return "", fmt.Errorf("unsupported root filesystem type: %s, supported: %s", fsType, strings.Join(supportedFS, ", "))
