@@ -72,21 +72,21 @@ func PlatformFor(archStr, uefiVendor string) *platform.Data {
 	return platform
 }
 
-func GetDistroAndRunner(osRelease osinfo.OSRelease) (manifest.Distro, runner.Runner, error) {
-	switch osRelease.ID {
+func tryGetDistroAndRunner(id, versionID string) (manifest.Distro, runner.Runner, error) {
+	switch id {
 	case "fedora":
-		version, err := strconv.ParseUint(osRelease.VersionID, 10, 64)
+		version, err := strconv.ParseUint(versionID, 10, 64)
 		if err != nil {
-			return manifest.DISTRO_NULL, nil, fmt.Errorf("cannot parse Fedora version (%s): %w", osRelease.VersionID, err)
+			return manifest.DISTRO_NULL, nil, fmt.Errorf("cannot parse Fedora version (%s): %w", versionID, err)
 		}
 
 		return manifest.DISTRO_FEDORA, &runner.Fedora{
 			Version: version,
 		}, nil
 	case "centos":
-		version, err := strconv.ParseUint(osRelease.VersionID, 10, 64)
+		version, err := strconv.ParseUint(versionID, 10, 64)
 		if err != nil {
-			return manifest.DISTRO_NULL, nil, fmt.Errorf("cannot parse CentOS version (%s): %w", osRelease.VersionID, err)
+			return manifest.DISTRO_NULL, nil, fmt.Errorf("cannot parse CentOS version (%s): %w", versionID, err)
 		}
 		r := &runner.CentOS{
 			Version: version,
@@ -102,9 +102,9 @@ func GetDistroAndRunner(osRelease osinfo.OSRelease) (manifest.Distro, runner.Run
 		}
 
 	case "rhel":
-		versionParts := strings.Split(osRelease.VersionID, ".")
+		versionParts := strings.Split(versionID, ".")
 		if len(versionParts) != 2 {
-			return manifest.DISTRO_NULL, nil, fmt.Errorf("invalid RHEL version format: %s", osRelease.VersionID)
+			return manifest.DISTRO_NULL, nil, fmt.Errorf("invalid RHEL version format: %s", versionID)
 		}
 		major, err := strconv.ParseUint(versionParts[0], 10, 64)
 		if err != nil {
@@ -129,8 +129,12 @@ func GetDistroAndRunner(osRelease osinfo.OSRelease) (manifest.Distro, runner.Run
 		}
 	}
 
-	olog.Printf("Unknown distro %s, using default runner", osRelease.ID)
+	olog.Printf("Unknown distro %s, using default runner", id)
 	return manifest.DISTRO_NULL, &runner.Linux{}, nil
+}
+
+func GetDistroAndRunner(osRelease osinfo.OSRelease) (manifest.Distro, runner.Runner, error) {
+	return tryGetDistroAndRunner(osRelease.ID, osRelease.VersionID)
 }
 
 func NeedsRHELLoraxTemplates(si osinfo.OSRelease) bool {
