@@ -134,7 +134,21 @@ func tryGetDistroAndRunner(id, versionID string) (manifest.Distro, runner.Runner
 }
 
 func GetDistroAndRunner(osRelease osinfo.OSRelease) (manifest.Distro, runner.Runner, error) {
-	return tryGetDistroAndRunner(osRelease.ID, osRelease.VersionID)
+	distro, r, err := tryGetDistroAndRunner(osRelease.ID, osRelease.VersionID)
+	if distro != manifest.DISTRO_NULL || err != nil {
+		return distro, r, err
+	}
+
+	for _, idLike := range osRelease.IDLike {
+		distro, r, err := tryGetDistroAndRunner(idLike, osRelease.VersionID)
+		if distro != manifest.DISTRO_NULL || err != nil {
+			olog.Printf("ID_LIKE %s found, using it for manifest generation", idLike)
+			return distro, r, err
+		}
+	}
+
+	olog.Printf("No distro found for %s-%s, using default runner", osRelease.ID, osRelease.VersionID)
+	return manifest.DISTRO_NULL, &runner.Linux{}, nil
 }
 
 func NeedsRHELLoraxTemplates(si osinfo.OSRelease) bool {
