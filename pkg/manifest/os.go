@@ -225,12 +225,18 @@ type OS struct {
 	// Partition table, if nil the tree cannot be put on a partitioned disk
 	PartitionTable *disk.PartitionTable
 
+	// SourceContainer is an optional container source to deploy as the OS tree.
+	// If set, RPM installation and BLS fixing will be skipped, and the container
+	// will be deployed instead.
+	SourceContainer *container.SourceSpec
+
 	// content-related fields
-	repos            []rpmmd.RepoConfig
-	packageSpecs     rpmmd.PackageList
-	moduleSpecs      []rpmmd.ModuleSpec
-	containerSpecs   []container.Spec
-	ostreeParentSpec *ostree.CommitSpec
+	repos               []rpmmd.RepoConfig
+	packageSpecs        rpmmd.PackageList
+	moduleSpecs         []rpmmd.ModuleSpec
+	containerSpecs      []container.Spec
+	sourceContainerSpec *container.Spec
+	ostreeParentSpec    *ostree.CommitSpec
 
 	platform  platform.Platform
 	kernelVer string
@@ -257,6 +263,12 @@ func NewOS(buildPipeline Build, platform platform.Platform, repos []rpmmd.RepoCo
 }
 
 func (p *OS) getPackageSetChain(Distro) ([]rpmmd.PackageSet, error) {
+	// If SourceContainer is set, we don't need to install any packages
+	// as the container will provide the OS tree
+	if p.SourceContainer != nil {
+		return nil, nil
+	}
+
 	platformPackages := p.platform.GetPackages()
 
 	var environmentPackages []string
@@ -369,7 +381,13 @@ func (p *OS) getPackageSetChain(Distro) ([]rpmmd.PackageSet, error) {
 }
 
 func (p *OS) getContainerSources() []container.SourceSpec {
-	return p.OSCustomizations.Containers
+	sources := p.OSCustomizations.Containers
+	// If SourceContainer is set, add it first to the list of container sources
+	// so it can be easily identified in serializeStart()
+	if p.SourceContainer != nil {
+		sources = append([]container.SourceSpec{*p.SourceContainer}, sources...)
+	}
+	return sources
 }
 
 func tomlPkgsFor(distro Distro) ([]string, error) {
@@ -478,29 +496,46 @@ func (p *OS) getContainerSpecs() []container.Spec {
 }
 
 func (p *OS) serializeStart(inputs Inputs) error {
-	if len(p.packageSpecs) > 0 {
-		return errors.New("OS: double call to serializeStart()")
-	}
-
-	p.packageSpecs = inputs.Depsolved.Packages
-	p.moduleSpecs = inputs.Depsolved.Modules
-	p.containerSpecs = inputs.Containers
-	if len(inputs.Commits) > 0 {
-		if len(inputs.Commits) > 1 {
-			return errors.New("OS: pipeline supports at most one ostree commit")
+	if p.SourceContainer != nil {
+		// Container-based OS: handle container source
+		if p.sourceContainerSpec != nil {
+			return errors.New("OS: double call to serializeStart()")
 		}
-		p.ostreeParentSpec = &inputs.Commits[0]
-	}
-
-	if p.OSCustomizations.KernelName != "" {
-		kernelPkg, err := p.packageSpecs.Package(p.OSCustomizations.KernelName)
-		if err != nil {
-			return fmt.Errorf("OS: %w", err)
+		if len(inputs.Containers) == 0 {
+			return errors.New("OS: no container in inputs")
 		}
-		p.kernelVer = kernelPkg.EVRA()
-	}
+		// Find the source container in the inputs
+		// The source container should be the first one if it matches
+		// For simplicity, we'll take the first container if SourceContainer is set
+		p.sourceContainerSpec = &inputs.Containers[0]
+		// Also store other containers for embedding
+		p.containerSpecs = inputs.Containers[1:]
+	} else {
+		// RPM-based OS: handle packages
+		if len(p.packageSpecs) > 0 {
+			return errors.New("OS: double call to serializeStart()")
+		}
 
-	p.repos = append(p.repos, inputs.Depsolved.Repos...)
+		p.packageSpecs = inputs.Depsolved.Packages
+		p.moduleSpecs = inputs.Depsolved.Modules
+		p.containerSpecs = inputs.Containers
+		if len(inputs.Commits) > 0 {
+			if len(inputs.Commits) > 1 {
+				return errors.New("OS: pipeline supports at most one ostree commit")
+			}
+			p.ostreeParentSpec = &inputs.Commits[0]
+		}
+
+		if p.OSCustomizations.KernelName != "" {
+			kernelPkg, err := p.packageSpecs.Package(p.OSCustomizations.KernelName)
+			if err != nil {
+				return fmt.Errorf("OS: %w", err)
+			}
+			p.kernelVer = kernelPkg.EVRA()
+		}
+
+		p.repos = append(p.repos, inputs.Depsolved.Repos...)
+	}
 	return nil
 }
 
@@ -511,65 +546,81 @@ func (p *OS) serializeEnd() {
 	p.kernelVer = ""
 	p.packageSpecs = nil
 	p.containerSpecs = nil
+	p.sourceContainerSpec = nil
 	p.ostreeParentSpec = nil
 }
 
 func (p *OS) serialize() (osbuild.Pipeline, error) {
-	if len(p.packageSpecs) == 0 {
-		return osbuild.Pipeline{}, fmt.Errorf("serialization not started")
-	}
-
 	pipeline, err := p.Base.serialize()
 	if err != nil {
 		return osbuild.Pipeline{}, err
 	}
 
-	if p.ostreeParentSpec != nil {
-		pipeline.AddStage(osbuild.NewOSTreePasswdStage("org.osbuild.source", p.ostreeParentSpec.Checksum))
-	}
-
-	// collect all repos for this pipeline to create the repository options
-	allRepos := append(p.repos, p.OSCustomizations.ExtraBaseRepos...)
-	allRepos = append(allRepos, p.OSCustomizations.PayloadRepos...)
-
-	rpmOptions := osbuild.NewRPMStageOptions(allRepos)
-	if p.OSCustomizations.ExcludeDocs {
-		if rpmOptions.Exclude == nil {
-			rpmOptions.Exclude = &osbuild.Exclude{}
+	if p.SourceContainer != nil {
+		// If SourceContainer is set, deploy the container instead of installing RPMs
+		if p.sourceContainerSpec == nil {
+			return osbuild.Pipeline{}, fmt.Errorf("serialization not started")
 		}
-		rpmOptions.Exclude.Docs = true
-	}
-	rpmOptions.GPGKeysFromTree = p.OSCustomizations.GPGKeyFiles
-	if p.OSTreeRef != "" {
-		rpmOptions.OSTreeBooted = common.ToPtr(true)
-		rpmOptions.DBPath = "/usr/share/rpm"
-		// The dracut-config-rescue package will create a rescue kernel when
-		// installed. This creates an issue with ostree-based images because
-		// rpm-ostree requires that only one kernel exists in the image.
-		// Disabling dracut for ostree-based systems resolves this issue.
-		// Dracut will be run by rpm-ostree itself while composing the image.
-		// https://github.com/osbuild/images/issues/624
-		rpmOptions.DisableDracut = true
-	}
-	rpmOptions.InstallLangs = p.OSCustomizations.InstallLangs
 
-	if p.platform.GetBootloader() == platform.BOOTLOADER_UKI && p.PartitionTable != nil {
-		espMountpoint, err := findESPMountpoint(p.PartitionTable)
+		image := osbuild.NewContainersInputForSingleSource(*p.sourceContainerSpec)
+		stage, err := osbuild.NewContainerDeployStage(image, &osbuild.ContainerDeployOptions{RemoveSignatures: true})
 		if err != nil {
-			return osbuild.Pipeline{}, err
+			return pipeline, err
 		}
-		rpmOptions.KernelInstallEnv = &osbuild.KernelInstallEnv{
-			BootRoot: espMountpoint,
+		pipeline.AddStage(stage)
+	} else {
+		// RPM-based OS
+		if len(p.packageSpecs) == 0 {
+			return osbuild.Pipeline{}, fmt.Errorf("serialization not started")
 		}
-	}
-	pipeline.AddStage(osbuild.NewRPMStage(rpmOptions, osbuild.NewRpmStageSourceFilesInputs(p.packageSpecs)))
 
-	if !p.OSCustomizations.NoBLS {
-		// If the /boot is on a separate partition, the prefix for the BLS stage must be ""
-		if p.PartitionTable == nil || p.PartitionTable.FindMountable("/boot") == nil {
-			pipeline.AddStage(osbuild.NewFixBLSStage(&osbuild.FixBLSStageOptions{}))
-		} else {
-			pipeline.AddStage(osbuild.NewFixBLSStage(&osbuild.FixBLSStageOptions{Prefix: common.ToPtr("")}))
+		if p.ostreeParentSpec != nil {
+			pipeline.AddStage(osbuild.NewOSTreePasswdStage("org.osbuild.source", p.ostreeParentSpec.Checksum))
+		}
+
+		// collect all repos for this pipeline to create the repository options
+		allRepos := append(p.repos, p.OSCustomizations.ExtraBaseRepos...)
+		allRepos = append(allRepos, p.OSCustomizations.PayloadRepos...)
+
+		rpmOptions := osbuild.NewRPMStageOptions(allRepos)
+		if p.OSCustomizations.ExcludeDocs {
+			if rpmOptions.Exclude == nil {
+				rpmOptions.Exclude = &osbuild.Exclude{}
+			}
+			rpmOptions.Exclude.Docs = true
+		}
+		rpmOptions.GPGKeysFromTree = p.OSCustomizations.GPGKeyFiles
+		if p.OSTreeRef != "" {
+			rpmOptions.OSTreeBooted = common.ToPtr(true)
+			rpmOptions.DBPath = "/usr/share/rpm"
+			// The dracut-config-rescue package will create a rescue kernel when
+			// installed. This creates an issue with ostree-based images because
+			// rpm-ostree requires that only one kernel exists in the image.
+			// Disabling dracut for ostree-based systems resolves this issue.
+			// Dracut will be run by rpm-ostree itself while composing the image.
+			// https://github.com/osbuild/images/issues/624
+			rpmOptions.DisableDracut = true
+		}
+		rpmOptions.InstallLangs = p.OSCustomizations.InstallLangs
+
+		if p.platform.GetBootloader() == platform.BOOTLOADER_UKI && p.PartitionTable != nil {
+			espMountpoint, err := findESPMountpoint(p.PartitionTable)
+			if err != nil {
+				return osbuild.Pipeline{}, err
+			}
+			rpmOptions.KernelInstallEnv = &osbuild.KernelInstallEnv{
+				BootRoot: espMountpoint,
+			}
+		}
+		pipeline.AddStage(osbuild.NewRPMStage(rpmOptions, osbuild.NewRpmStageSourceFilesInputs(p.packageSpecs)))
+
+		if !p.OSCustomizations.NoBLS {
+			// If the /boot is on a separate partition, the prefix for the BLS stage must be ""
+			if p.PartitionTable == nil || p.PartitionTable.FindMountable("/boot") == nil {
+				pipeline.AddStage(osbuild.NewFixBLSStage(&osbuild.FixBLSStageOptions{}))
+			} else {
+				pipeline.AddStage(osbuild.NewFixBLSStage(&osbuild.FixBLSStageOptions{Prefix: common.ToPtr("")}))
+			}
 		}
 	}
 
