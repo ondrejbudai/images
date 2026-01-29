@@ -73,6 +73,7 @@ func (img *ContainerBasedIso) InstantiateManifestFromContainer(m *manifest.Manif
 	buildPipeline := manifest.NewBuildFromContainer(m, runner, cnts,
 		&manifest.BuildOptions{
 			ContainerBuildable: true,
+			DisableSELinux:     true,
 		})
 
 	osTreePipeline := manifest.NewOSFromContainer("os-tree", buildPipeline, &img.ContainerSource)
