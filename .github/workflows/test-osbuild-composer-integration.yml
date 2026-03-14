@@ -141,7 +141,7 @@ jobs:
     needs: unit-tests
     steps:
       - name: Add comment (breakage)
-        uses: mshick/add-pr-comment@v2
+        uses: mshick/add-pr-comment@v3
         if: needs.unit-tests.outputs.base_test == 1  &&  needs.unit-tests.outputs.pr_test == 0
         with:
           repo-token: ${{ secrets.SCHUTZBOT_GITHUB_ACCESS_TOKEN }}
@@ -152,7 +152,7 @@ jobs:
             This is simply a notice. It will not block this PR from being merged.
 
       - name: Update comment (fixed)
-        uses: mshick/add-pr-comment@v2
+        uses: mshick/add-pr-comment@v3
         if: needs.unit-tests.outputs.pr_test == 1
         with:
           repo-token: ${{ secrets.SCHUTZBOT_GITHUB_ACCESS_TOKEN }}
