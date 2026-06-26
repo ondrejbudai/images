@@ -14,6 +14,7 @@ import (
 	"github.com/osbuild/image-builder/pkg/customizations/fsnode"
 	"github.com/osbuild/image-builder/pkg/customizations/kickstart"
 	"github.com/osbuild/image-builder/pkg/disk"
+	"github.com/osbuild/image-builder/pkg/experimentalflags"
 	"github.com/osbuild/image-builder/pkg/osbuild"
 	"github.com/osbuild/image-builder/pkg/ostree"
 )
@@ -660,32 +661,57 @@ func (p *AnacondaInstallerISOTree) bootcInstallerKickstartStages() ([]*osbuild.S
 
 	stages := make([]*osbuild.Stage, 0)
 
-	// do what we can in our kickstart stage
-	kickstartOptions, err := osbuild.NewKickstartStageOptionsWithOSTreeContainer(
-		p.Kickstart.Path,
-		p.Kickstart.Users,
-		p.Kickstart.Groups,
-		path.Join("/run/install/repo", p.InstallerCustomizations.Payload.Path),
-		"oci",
-		"",
-		"")
-	if err != nil {
-		return nil, fmt.Errorf("failed to create kickstart stage options: %w", err)
+	// used during automatic image testing as finished marker
+	installFinishedMarker := []string{
+		"# used during automatic image testing as finished marker",
+		"if [ -c /dev/ttyS0 ]; then",
+		`  echo "Install finished" > /dev/ttyS0 || true`,
+		"fi",
 	}
 
-	// Workaround for lack of --target-imgref in Anaconda, xref https://github.com/osbuild/image-builder/issues/380
-	kickstartOptions.Post = append(kickstartOptions.Post, osbuild.PostOptions{
-		ErrorOnFail: true,
-		Commands: []string{
+	var kickstartOptions *osbuild.KickstartStageOptions
+	if experimentalflags.Bool("use-bootc-verb-in-anaconda-iso") {
+		var err error
+		kickstartOptions, err = osbuild.NewKickstartStageOptionsWithBootc(
+			p.Kickstart.Path,
+			p.Kickstart.Users,
+			p.Kickstart.Groups,
+			fmt.Sprintf("oci:%s", path.Join("/run/install/repo", p.InstallerCustomizations.Payload.Path)),
+			p.containerSpec.LocalName,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create kickstart stage options: %w", err)
+		}
+
+		kickstartOptions.Post = append(kickstartOptions.Post, osbuild.PostOptions{
+			ErrorOnFail: true,
+			Commands:    installFinishedMarker,
+		})
+	} else {
+		var err error
+		kickstartOptions, err = osbuild.NewKickstartStageOptionsWithOSTreeContainer(
+			p.Kickstart.Path,
+			p.Kickstart.Users,
+			p.Kickstart.Groups,
+			path.Join("/run/install/repo", p.InstallerCustomizations.Payload.Path),
+			"oci",
+			"",
+			"")
+		if err != nil {
+			return nil, fmt.Errorf("failed to create kickstart stage options: %w", err)
+		}
+
+		// Workaround for lack of --target-imgref in Anaconda, xref https://github.com/osbuild/image-builder/issues/380
+		postCmds := []string{
 			"set -e",
 			fmt.Sprintf("bootc switch --mutate-in-place --transport registry %s", p.containerSpec.LocalName),
-			"# used during automatic image testing as finished marker",
-			"if [ -c /dev/ttyS0 ]; then",
-			"  # continue on errors here, because we used to omit --erroronfail",
-			`  echo "Install finished" > /dev/ttyS0 || true`,
-			"fi",
-		},
-	})
+		}
+		postCmds = append(postCmds, installFinishedMarker...)
+		kickstartOptions.Post = append(kickstartOptions.Post, osbuild.PostOptions{
+			ErrorOnFail: true,
+			Commands:    postCmds,
+		})
+	}
 
 	// kickstart.New() already validates the options but they may have been
 	// modified since then, so validate them before we create the stages

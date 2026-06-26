@@ -1050,6 +1050,36 @@ func TestAnacondaISOTreeSerializeInstallRootfsType(t *testing.T) {
 	}
 }
 
+func TestAnacondaISOTreeSerializeWithContainerBootcVerb(t *testing.T) {
+	t.Setenv("IMAGE_BUILDER_EXPERIMENTAL", "use-bootc-verb-in-anaconda-iso")
+
+	containerPayload := makeFakeContainerPayload()
+
+	pipeline := newTestAnacondaISOTree(manifest.Grub2UEFIOnlyISOBoot)
+	pipeline.Kickstart = &kickstart.Options{
+		Path:       testKsPath,
+		Unattended: true,
+	}
+	sp, err := manifest.SerializeWith(pipeline, manifest.Inputs{Containers: []container.Spec{containerPayload}})
+	require.NoError(t, err)
+
+	kickstartSt := findStage("org.osbuild.kickstart", sp.Stages)
+	require.NotNil(t, kickstartSt)
+	opts := kickstartSt.Options.(*osbuild.KickstartStageOptions)
+
+	assert.Nil(t, opts.OSTreeContainer, "ostreecontainer should not be set when using bootc verb")
+	require.NotNil(t, opts.Bootc, "bootc options should be set")
+	assert.Equal(t, "oci:/run/install/repo", opts.Bootc.SourceImgRef)
+	assert.Equal(t, containerPayload.LocalName, opts.Bootc.TargetImgRef)
+
+	for _, post := range opts.Post {
+		for _, cmd := range post.Commands {
+			assert.NotContains(t, cmd, "bootc switch --mutate-in-place",
+				"bootc switch workaround should not be present when using the bootc verb")
+		}
+	}
+}
+
 func TestAnacondaInstallerISOTreeNewErofsStage(t *testing.T) {
 	pipeline := newTestAnacondaISOTreeErofs(manifest.Grub2UEFIOnlyISOBoot)
 	pipeline.RootfsType = manifest.ErofsRootfs
