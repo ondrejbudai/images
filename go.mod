@@ -1,8 +1,6 @@
 module github.com/osbuild/images
 
-go 1.22.8
-
-toolchain go1.22.11
+go 1.25.0
 
 require (
 	cloud.google.com/go/compute v1.33.0
@@ -16,8 +14,9 @@ require (
 	github.com/containers/common v0.62.0
 	github.com/containers/image/v5 v5.34.0
 	github.com/containers/storage v1.57.1
-	github.com/gobwas/glob v0.2.3
-	github.com/golang-jwt/jwt/v4 v4.5.1
+	github.com/gobwas/glob v1.0.0
+	github.com/golang-jwt/jwt/v4 v4.5.0
+	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-retryablehttp v0.7.7
@@ -26,6 +25,7 @@ require (
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.0
 	github.com/oracle/oci-go-sdk/v54 v54.0.0
+	github.com/oracle/oci-go-sdk/v65 v65.124.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/pflag v1.0.6
@@ -34,8 +34,8 @@ require (
 	github.com/vmware/govmomi v0.48.1
 	golang.org/x/exp v0.0.0-20250103183323-7d7fa50e5329
 	golang.org/x/oauth2 v0.26.0
-	golang.org/x/sys v0.30.0
-	golang.org/x/tools v0.30.0
+	golang.org/x/sys v0.45.0
+	golang.org/x/tools v0.44.0
 	google.golang.org/api v0.221.0
 	gopkg.in/ini.v1 v1.67.0
 	gopkg.in/yaml.v3 v3.0.1
@@ -170,12 +170,12 @@ require (
 	go.opentelemetry.io/otel/sdk v1.34.0 // indirect
 	go.opentelemetry.io/otel/sdk/metric v1.32.0 // indirect
 	go.opentelemetry.io/otel/trace v1.34.0 // indirect
-	golang.org/x/crypto v0.33.0 // indirect
-	golang.org/x/mod v0.23.0 // indirect
-	golang.org/x/net v0.35.0 // indirect
-	golang.org/x/sync v0.11.0 // indirect
-	golang.org/x/term v0.29.0 // indirect
-	golang.org/x/text v0.22.0 // indirect
+	golang.org/x/crypto v0.52.0 // indirect
+	golang.org/x/mod v0.35.0 // indirect
+	golang.org/x/net v0.54.0 // indirect
+	golang.org/x/sync v0.20.0 // indirect
+	golang.org/x/term v0.43.0 // indirect
+	golang.org/x/text v0.37.0 // indirect
 	golang.org/x/time v0.10.0 // indirect
 	google.golang.org/genproto v0.0.0-20250122153221-138b5a5a4fd4 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20250124145028-65684f501c47 // indirect
